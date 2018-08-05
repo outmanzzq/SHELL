@@ -10,22 +10,28 @@ Vagrant.configure("2") do |config|
     hbmaster_config.vm.network :private_network, ip: "10.0.0.7"
     hbmaster_config.vm.hostname = "linux-node1.example.com"
     hbmaster_config.vm.provision "shell", inline: <<-SHELL
-      #sudo ip addr add 10.0.10.7/24 dev eth2
-      ip ad |grep 'inet '
-      
+      sudo mkdir -p /server/{tools,scripts,backup} 
+
+      # install epel repo
+      sudo rpm -ivh https://mirrors.ustc.edu.cn/epel/6/x86_64/epel-release-6-8.noarch.rpm
+
+      # install docker-ce
+      sudo yum install -y docker-io
+      sudo /etc/init.d/docker start
+
+      # set LANG
+      sudo sed -i 's/\(LANG=\).*/\1\"zh_CN.UTF-8\"/' /etc/sysconfig/i18n
+
       sudo yum install -y lrzsz
       # set ssh root login
       sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin yes/' /etc/ssh/sshd_config
       sudo /etc/init.d/sshd reload
       # set root password
       echo '123456' | sudo passwd --stdin root
-      
-      sudo cat >>/etc/hosts <<EOF
-#set hosts
-10.0.0.7  linux-node1.example.com
-10.0.0.8  linux-node2.example.com
-EOF
+
+      ip ad |grep 'inet '
     SHELL
+
     config.vm.provider :virtualbox do |vb|
       vb.name = "hbmaster"
       vb.customize ["modifyvm", :id, "--cpuexecutioncap", "50"]
@@ -35,30 +41,4 @@ EOF
     end
   end
 
-  # 定义 backup
-  config.vm.define :hbbackup do |hbbackup_config|
-    hbbackup_config.vm.network :private_network, ip: "172.16.1.8"
-    hbbackup_config.vm.network :private_network, ip: "10.0.0.8"
-    hbbackup_config.vm.hostname = "linux-node2.example.com"
-    hbbackup_config.vm.provision "shell", inline: <<-SHELL
-      #sudo ip addr add 10.0.10.8/24 dev eth2
-      ip ad |grep 'inet '
-      
-      sudo yum install -y lrzsz
-      # set ssh root login
-      sudo sed -i 's/#PermitRootLogin yes/PermitRootLogin yes/' /etc/ssh/sshd_config
-      sudo /etc/init.d/sshd reload
-      # set root password
-      echo '123456' | sudo passwd --stdin root
-      
-      sudo cat >>/etc/hosts <<EOF
-#set hosts
-10.0.0.7  linux-node1.example.com
-10.0.0.8  linux-node2.example.com
-EOF
-    SHELL
-    hbbackup_config.vm.provider "virtualbox" do |vb|
-      vb.name = "hbbackup"
-    end
-  end
 end
